@@ -607,8 +607,7 @@ int main() {
         m    = m_net + m_gas + m_bl_air;
         Fa   = rho_atm * V_b * g;
         Fg   = m * g;
-        Fd_z = Cd_z * (rho_atm * vz * vz / 2) * Sb_drag;
-    
+        Fd_z = ((vz > 0) - (vz < 0))* Cd_z * (rho_atm * vz * vz / 2) * Sb_drag;
         a_z  = (Fa - Fg - Fd_z) / m;
         dvz  = a_z * dt;
         vz_0 = vz;
