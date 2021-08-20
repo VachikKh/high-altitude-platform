@@ -57,7 +57,7 @@ using namespace std;
     double dP_bl;                        // dP = P_bl  - P_gas ; ballonet diff pressure    (Pa)    
     double dP_max    =  100;             // balloon  max diff pressure = P_b-P_atm         (Pa)
     double dP_max_bl = 7500;             // ballonet max diff pressure = P_bl-P_gas        (Pa)
-    double m_bl_air   = 0.0;             // current air mass in the ballonet               (kg)   0.9
+    double m_bl_air   = 0.9;             // current air mass in the ballonet               (kg)   0.9
     double m_bl_air_1;                   // ballonet air mass at which P_gas = Patm        (kg)
     double m_bl_air_2;                   // ballonet air mass at which P_bl = P_gas_max    (kg)
     double V_bl_air_1;                   // ballonet volume at m_bl_air = m_bl_air_1       (m^3)
@@ -152,7 +152,7 @@ using namespace std;
     double vz   = 0;                     // current velocity along z                       (m/s) 
     double v_0  = 0;                     // previous velocity                              (m/s)
     double v    = 0;                     // current velocity                               (m/s)
-    double h0   = 15000; //1120;  24000           // initial altitude                 ( < 36000 )   (m)
+    double h0   = 24000; //1120;  24000           // initial altitude                 ( < 36000 )   (m)
     double h_max= 25000;                 // the max altitude to stop ascent  ( < 36000 )   (km)
     double h_min= 15000;                 // the min altitude to stop descent ( < 36000 )   (km)
     double x_0  = 0;                     // previous x coordinate (East)                   (m/s)
