@@ -57,7 +57,7 @@ using namespace std;
     double dP_bl;                        // dP = P_bl  - P_gas ; ballonet diff pressure    (Pa)    
     double dP_max    =  100;             // balloon  max diff pressure = P_b-P_atm         (Pa)
     double dP_max_bl = 7500;             // ballonet max diff pressure = P_bl-P_gas        (Pa)
-    double m_bl_air   = 0.9;             // current air mass in the ballonet               (kg)   0.9
+    double m_bl_air   = 0;               // current air mass in the ballonet               (kg)   0.9
     double m_bl_air_1;                   // ballonet air mass at which P_gas = Patm        (kg)
     double m_bl_air_2;                   // ballonet air mass at which P_bl = P_gas_max    (kg)
     double V_bl_air_1;                   // ballonet volume at m_bl_air = m_bl_air_1       (m^3)
@@ -96,9 +96,10 @@ using namespace std;
     double pump_rate_V  = 600;           // air volume pumping rate of one pump            (l/min)
     double pumping_rate_V;               // overall air volume pumping rate                (m^3/s)
     double pumping_rate_m;               // overall air mass pumping rate                  (kg/s)
-    double k_pump;                       // pump gain - due to more powerfull BLDC motor
+    double k_pump       = 5.52;                       // pump gain - due to more powerfull BLDC motor
     double S_pump       = pi*0.01*0.01;  // pump outlet cross section area                 (m^2)
     int pump_on_off     = 0;             // 0 - off, 1 - on
+
     
 // LTA gas data
     double mu_gas;                       // molar mass of the LTA gas                      (gram)
@@ -139,6 +140,8 @@ using namespace std;
     double mg_max;                       // maximum overload force                         (kg)
 
 // Declaration and initialization of variables 
+    bool launch_mode = false;            // true, if in launch mode, false - otherwise 
+    bool pumping_on_off = true;         // pumping mode: false - disabled, true - enabled
     double t0   = 0;                     // previous time                                  (s)
     double t    = 0;                     // current time                                   (s)
     double ad_x;                         // air drag acceleration along x                  (m/s^2)
@@ -152,7 +155,7 @@ using namespace std;
     double vz   = 0;                     // current velocity along z                       (m/s) 
     double v_0  = 0;                     // previous velocity                              (m/s)
     double v    = 0;                     // current velocity                               (m/s)
-    double h0   = 24000; //1120;  24000           // initial altitude                 ( < 36000 )   (m)
+    double h0   = 24990; //1120;  24000           // initial altitude                 ( < 36000 )   (m)
     double h_max= 25000;                 // the max altitude to stop ascent  ( < 36000 )   (km)
     double h_min= 15000;                 // the min altitude to stop descent ( < 36000 )   (km)
     double x_0  = 0;                     // previous x coordinate (East)                   (m/s)
@@ -383,8 +386,8 @@ int main() {
     m_b  = ro_f * S_b  * d_f;
     m_bl = ro_f * S_bl * d_f;
     //   rb  = 4 * So_b / (pi + 2 / sin(eta)); 
-    m_pump_all      = N_pump * m_pump;
-   // pumping_rate_V  = k_pump * N_pumps_on * pump_rate_V;
+    m_pump_all    = N_pump * m_pump;
+    //   pumping_rate_V = k_pump * N_pumps_on * pump_rate_V;
     
     m_net    = m_p + m_b + m_bl + m_pump_all; // overall net mass                   (kg)
 
@@ -428,7 +431,7 @@ int main() {
         pumping_rate_m = rho_atm * pumping_rate_V;
         T_gas = T_atm + dT_gas;
         
-        if (z < h_min){
+        if (z < h_min && launch_mode){
             m_gas = m_gas_0;
             }
         else{
@@ -579,6 +582,7 @@ int main() {
         Sb_drag  = pi * R_b_x * R_b_x;
               
         if (vz < 0) {
+            //Cd_z = Cd_z_max;
             if (eta <= eta_max) {
                 Cd_z = 1 - pow(cos(eta),4); 
             }
@@ -604,16 +608,25 @@ int main() {
         
         // Pg0 = Cx * rho * v * v * Sp / 2 / m / g;
         // ax = Cx * (rho * v * v/ 2) * Sp / m;
+        
         m    = m_net + m_gas + m_bl_air;
         Fa   = rho_atm * V_b * g;
         Fg   = m * g;
-        Fd_z = ((vz > 0) - (vz < 0))* Cd_z * (rho_atm * vz * vz / 2) * Sb_drag;
+        Fd_z = Cd_z * (rho_atm * vz * abs(vz) / 2) * Sb_drag;
+    
         a_z  = (Fa - Fg - Fd_z) / m;
         dvz  = a_z * dt;
         vz_0 = vz;
         vz   = vz + dvz;
         dz   = ((vz + vz_0) / 2) * dt;
         z    = z + dz;
+        
+        if ((P_bl - P_gas < dP_max_bl) && pumping_on_off) {
+            pumping_rate_m = N_pumps_on * S_pump * pow(2 * rho_atm * (Patm[0] + rho_atm * pow(k_pump * pumping_rate_V/S_pump,2) - P_bl),0.5);        
+            m_bl_air  = m_bl_air + pumping_rate_m * dt;
+            pump_on_off = 1;
+        }
+        else pump_on_off = 0;
         
         Pg   = a_z / g;
         mg   = Pg * m;
@@ -634,7 +647,7 @@ int main() {
         t = t + dt;
         if ((t - t0) >= dt_print){
             t0 = t;
-            cout << t << "\t" << z << "\t" << vz << "\t" << a_z << "\t" << Pg << "\t" << P_atm << "\t" << T_atm << "\t" << rho_atm << "\t" << m_bl_air << "\t" << diff_Pmode <<"\t" << dP << "\t" << dP_bl << "\t" << m_gas << "\t" << eta/pix <<  "\t" << Cd_z <<  "\t" << m << endl;
+            cout << t << "\t" << z << "\t" << vz << "\t" << a_z << "\t" << Pg << "\t" << P_atm << "\t" << T_atm << "\t" << rho_atm << "\t" << m_bl_air << "\t" << diff_Pmode <<"\t" << dP << "\t" << dP_bl << "\t" << m_gas << "\t" << eta/pix <<  "\t" << Cd_z <<  "\t" << m <<  "\t" << pump_on_off << endl;
             //cout << Rb << "\t" << Sb << "\t" << Vb << "\t" << rho << "\t" << m*g << "\t" << Cx * (rho * v * v / 2) * Sb <<endl;
             //cout << h << "\t" << v0 << "\t" << v << "\t" << acc << "\t" << dh << "\t" << m <<endl;
         }
@@ -647,23 +660,6 @@ int main() {
 
     
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
